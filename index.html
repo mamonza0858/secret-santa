@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Secret Santa ออฟฟิศ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Anuphan:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column, organizer setup → draw → per-person links; recipients open a sealed gift tag */
+:root{
+  --bg:#f3f6f4; --surface:#ffffff; --ink:#15302a; --muted:#5d7069; --line:#d6e0db;
+  --pine:#1d5c4a; --berry:#c23a4a; --berry-ink:#ffffff; --gold:#c99a2e; --soft:#e7efeb;
+  --display:"Mitr","Anuphan",system-ui,sans-serif;
+  --body:"Anuphan",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1a17; --surface:#16241f; --ink:#e4efe9; --muted:#9db1a8; --line:#2a3d36;
+  --pine:#6fc3a5; --berry:#e2596a; --berry-ink:#1a0a0d; --gold:#e3b955; --soft:#1d2e28; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1a17; --surface:#16241f; --ink:#e4efe9; --muted:#9db1a8; --line:#2a3d36;
+  --pine:#6fc3a5; --berry:#e2596a; --berry-ink:#1a0a0d; --gold:#e3b955; --soft:#1d2e28; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);font-weight:500;margin:0;text-wrap:balance;line-height:1.3}
+h1{font-size:clamp(28px,6vw,40px)}
+h2{font-size:20px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--berry);font-weight:600}
+.lead{color:var(--muted);margin:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.step{display:flex;align-items:center;gap:10px}
+.step b{font-family:var(--display);font-weight:500;width:28px;height:28px;border-radius:50%;background:var(--pine);color:var(--bg);display:grid;place-items:center;font-size:14px;flex:none}
+label{font-size:14px;font-weight:600;display:block;margin-bottom:4px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;box-sizing:border-box}
+textarea{min-height:170px;resize:vertical}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid2>*{min-width:0}
+@media (max-width:520px){.grid2{grid-template-columns:1fr}}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;background:var(--soft);color:var(--ink)}
+button:hover{filter:brightness(.97)}
+.primary{background:var(--berry);color:var(--berry-ink);font-family:var(--display);font-weight:500;font-size:18px;padding:14px 20px}
+.ghost{background:transparent;border:1px solid var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>select{flex:1 1 140px;width:auto}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border-radius:999px;padding:4px 6px 4px 12px;font-size:14px}
+.chip button{padding:2px 8px;border-radius:999px;background:transparent;color:var(--muted)}
+.count{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+.err{color:var(--berry);font-weight:600;margin:0}
+.list{display:flex;flex-direction:column}
+.item{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px dashed var(--line);flex-wrap:wrap}
+.item:first-child{border-top:0}
+.item .who{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.item .sent{font-size:13px;color:var(--pine)}
+.code{font-family:ui-monospace,Consolas,monospace;font-size:12px;word-break:break-all;color:var(--muted);background:var(--bg);border-radius:8px;padding:8px;user-select:all}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20}
+/* reveal */
+.tag{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:36px 24px 28px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;overflow:hidden}
+.tag::before{content:"";position:absolute;top:14px;left:50%;width:18px;height:18px;margin-left:-9px;border-radius:50%;border:2px solid var(--line);background:var(--bg)}
+.ribbon{position:absolute;inset:0 auto 0 50%;width:22px;margin-left:-11px;background:var(--berry);opacity:.12}
+.receiver{font-family:var(--display);font-size:clamp(34px,9vw,56px);color:var(--berry);line-height:1.2;overflow-wrap:anywhere}
+.facts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.fact{background:var(--soft);border-radius:10px;padding:8px 14px;font-size:14px}
+.fact span{display:block;color:var(--muted);font-size:12px}
+.note{color:var(--muted);max-width:46ch;margin:0}
+.sealed{width:120px;height:120px;border-radius:24px;background:var(--berry);position:relative;box-shadow:0 10px 30px -12px var(--berry)}
+.sealed::before,.sealed::after{content:"";position:absolute;background:var(--gold)}
+.sealed::before{left:50%;top:0;bottom:0;width:16px;margin-left:-8px}
+.sealed::after{top:50%;left:0;right:0;height:16px;margin-top:-8px}
+.reel{width:min(100%,420px);height:104px;overflow:hidden;border-radius:16px;background:var(--bg);border:3px solid var(--gold);position:relative;box-sizing:content-box;
+  box-shadow:inset 0 14px 14px -12px rgba(0,0,0,.28),inset 0 -14px 14px -12px rgba(0,0,0,.28)}
+.reel::before,.reel::after{content:"";position:absolute;top:50%;margin-top:-10px;border:10px solid transparent;z-index:2}
+.reel::before{left:0;border-left-color:var(--berry)}
+.reel::after{right:0;border-right-color:var(--berry)}
+.strip{will-change:transform}
+.strip div{height:104px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:clamp(24px,7vw,40px);padding:0 24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strip div.win{color:var(--berry)}
+.reel.done{border-color:var(--berry);animation:pop .6s cubic-bezier(.2,1.4,.4,1)}
+.primary:disabled{opacity:.6;cursor:default}
+.pop{animation:pop .6s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.wiggle{animation:wig 1.6s ease-in-out infinite}
+@keyframes wig{0%,80%,100%{transform:rotate(0)}85%{transform:rotate(-6deg)}90%{transform:rotate(6deg)}95%{transform:rotate(-3deg)}}
+@media (prefers-reduced-motion:reduce){.pop,.wiggle{animation:none}}
+#snow{position:fixed;inset:0;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1}
+</style>
+
+<canvas id="snow"></canvas>
+<div class="wrap">
+
+<!-- ORGANIZER -->
+<section id="organizer" class="wrap" style="gap:20px">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <div class="eyebrow">สำหรับคนจัดงาน</div>
+    <h1>Secret Santa ออฟฟิศ</h1>
+    <p class="lead">ใส่ชื่อทุกคน กดจับฉลาก แล้วส่งลิงก์ลับให้แต่ละคนทาง LINE หรือแชทส่วนตัว ทุกคนเปิดลิงก์ของตัวเองแล้วจะเห็นแค่ชื่อคนที่ต้องซื้อของขวัญให้</p>
+  </header>
+
+  <div class="panel" style="border-color:var(--berry)">
+    <h2>ได้ข้อความ Secret Santa มา แต่เข้ามาเจอหน้านี้?</h2>
+    <p class="hint">วางข้อความที่ได้รับทั้งก้อนลงช่องนี้ แล้วจะไปหน้าหมุนให้ทันที</p>
+    <input id="codeIn" placeholder="วางข้อความหรือรหัสตรงนี้" autocomplete="off">
+    <p class="err" id="codeErr" hidden>ไม่เจอรหัสในข้อความนี้ ลองคัดลอกข้อความมาใหม่ทั้งหมด</p>
+  </div>
+
+  <div class="panel">
+    <div class="step"><b>1</b><h2>รายละเอียดงาน</h2></div>
+    <div><label for="evName">ชื่องาน</label><input id="evName" placeholder="เช่น ปาร์ตี้ปีใหม่ทีมการตลาด"></div>
+    <div class="grid2">
+      <div><label for="evBudget">งบของขวัญ</label><input id="evBudget" placeholder="เช่น 300–500 บาท"></div>
+      <div><label for="evDate">วันแลกของขวัญ</label><input id="evDate" placeholder="เช่น ศุกร์ 25 ธ.ค. บ่าย 3 โมง"></div>
+    </div>
+    <div><label for="evNote">ข้อความถึงทุกคน (ไม่บังคับ)</label><input id="evNote" placeholder="เช่น ห่อให้สวย ห้ามเขียนชื่อคนให้นะ"></div>
+  </div>
+
+  <div class="panel">
+    <div class="step"><b>2</b><h2>ผู้เล่น</h2></div>
+    <div>
+      <label for="names">ชื่อผู้เล่น บรรทัดละหนึ่งคน</label>
+      <textarea id="names"></textarea>
+      <p class="count" id="nameCount"></p>
+    </div>
+    <div>
+      <label for="exA">ห้ามจับคู่กัน (ไม่บังคับ)</label>
+      <p class="hint" style="margin-bottom:8px">เช่น แฟนกัน หรือคนที่ซื้อให้กันอยู่แล้ว ทั้งสองคนจะไม่จับได้ชื่อกันและกัน</p>
+      <div class="row">
+        <select id="exA" aria-label="คนที่หนึ่ง"></select>
+        <select id="exB" aria-label="คนที่สอง"></select>
+        <button id="exAdd" type="button">เพิ่ม</button>
+      </div>
+      <div class="chips" id="exList" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="step"><b>3</b><h2>จับฉลาก</h2></div>
+    <p class="hint">ระบบจะจับให้เป็นวงเดียว ไม่มีใครจับได้ตัวเอง และไม่มีคู่ไหนจับได้กันและกัน ผลจะถูกซ่อนไว้ แม้แต่คนจัดก็ไม่เห็น</p>
+    <p class="err" id="drawErr" hidden></p>
+    <button class="primary" id="drawBtn" type="button">จับฉลาก</button>
+  </div>
+
+  <div class="panel" id="results" hidden>
+    <div class="row" style="justify-content:space-between">
+      <div class="step"><b>4</b><h2>ส่งลิงก์ลับ</h2></div>
+      <span class="count" id="sentCount"></span>
+    </div>
+    <p class="hint">กดคัดลอกแล้วส่งให้เจ้าของชื่อทีละคนทางแชทส่วนตัว อย่าส่งลงกลุ่ม</p>
+    <div class="list" id="resList"></div>
+    <div class="row">
+      <button class="ghost" id="copyAll" type="button">คัดลอกทั้งหมด (ส่งต่อทีละคน)</button>
+      <button class="ghost" id="redraw" type="button">จับใหม่</button>
+    </div>
+    <div id="redrawConfirm" class="row" hidden>
+      <span class="hint">ลิงก์เดิมที่ส่งไปแล้วจะใช้ไม่ได้ ต้องส่งใหม่ทุกคน</span>
+      <button id="redrawYes" type="button" style="background:var(--berry);color:var(--berry-ink)">ยืนยันจับใหม่</button>
+      <button class="ghost" id="redrawNo" type="button">ยกเลิก</button>
+    </div>
+    <textarea id="copyFallback" class="code" hidden readonly></textarea>
+  </div>
+
+</section>
+
+<!-- REVEAL -->
+<section id="reveal" hidden>
+  <div class="tag">
+    <div class="ribbon"></div>
+    <div class="eyebrow" id="rvEvent"></div>
+    <h1 id="rvHello"></h1>
+    <p class="note" style="margin:0">คุณคือ Secret Santa ของ…</p>
+    <div class="reel" id="reel" aria-live="polite"><div class="strip" id="strip"></div></div>
+    <div id="sealedBox" style="display:flex;flex-direction:column;gap:12px;align-items:center">
+      <button class="primary" id="openBtn" type="button">หมุนเลย!</button>
+      <p class="note">ดูคนเดียวนะ อย่าให้ใครเห็นจอ</p>
+    </div>
+    <div id="openedBox" hidden style="display:flex;flex-direction:column;gap:14px;align-items:center">
+      <div class="facts" id="rvFacts"></div>
+      <p class="note" id="rvNote"></p>
+      <button class="ghost" id="hideBtn" type="button">ซ่อนชื่อ</button>
+    </div>
+  </div>
+  <p class="hint" style="text-align:center;margin-top:16px"><a href="#" id="backLink" style="color:var(--muted)">กลับหน้าคนจัดงาน</a></p>
+</section>
+</div>
+
+<script>
+// ===== encoding: payload -> obfuscated bytes -> base32 (hash-safe) =====
+const KEY = "xmas-office-santa-2026";
+const A32 = "abcdefghijklmnopqrstuvwxyz234567";
+function b32(bytes){let bits=0,val=0,out="";for(const b of bytes){val=(val<<8)|b;bits+=8;while(bits>=5){out+=A32[(val>>>(bits-5))&31];bits-=5}}if(bits>0)out+=A32[(val<<(5-bits))&31];return out}
+function unb32(s){let bits=0,val=0;const out=[];for(const c of s){const i=A32.indexOf(c);if(i<0)throw 0;val=(val<<5)|i;bits+=5;if(bits>=8){out.push((val>>>(bits-8))&255);bits-=8}}return new Uint8Array(out)}
+function xor(bytes,salt){const k=new TextEncoder().encode(KEY);return bytes.map((b,i)=>b^k[i%k.length]^((salt*(i+7))&255))}
+function encode(obj){
+  const raw=new TextEncoder().encode(JSON.stringify(obj));
+  const salt=Math.floor(Math.random()*256);
+  let sum=0;raw.forEach(b=>sum=(sum+b)&255);
+  return b32(Uint8Array.from([salt,sum,...xor(raw,salt)]));
+}
+function decode(code){
+  const all=unb32(code.trim().toLowerCase().replace(/^r-/,""));
+  const salt=all[0],sum=all[1];const raw=xor(all.slice(2),salt);
+  let s=0;raw.forEach(b=>s=(s+b)&255);if(s!==sum)throw 0;
+  return JSON.parse(new TextDecoder().decode(raw));
+}
+
+// ===== state =====
+const $=id=>document.getElementById(id);
+const SHARE_BASE=location.href.split("#")[0];
+const sample={evName:"ปาร์ตี้ปีใหม่ 2027",evBudget:"300–500 บาท",evDate:"ศุกร์ 25 ธ.ค. 15:00",evNote:"ห่อให้สวย ห้ามเขียนชื่อคนให้นะ",
+  names:"ตัวอย่าง: พี่เอ\nตัวอย่าง: บีม\nตัวอย่าง: ฝน\nตัวอย่าง: ต้น\nตัวอย่าง: มิว",excl:[],results:null,sent:{}};
+let st;
+function load(){try{const s=JSON.parse(localStorage.getItem("ss-state"));if(s&&typeof s.names==="string")return s}catch(e){}return JSON.parse(JSON.stringify(sample))}
+function save(){try{localStorage.setItem("ss-state",JSON.stringify(st))}catch(e){}}
+st=load();
+
+function names(){const seen=new Set(),out=[];for(const n of st.names.split("\n").map(s=>s.trim()).filter(Boolean)){if(!seen.has(n)){seen.add(n);out.push(n)}}return out}
+function dupCount(){const all=st.names.split("\n").map(s=>s.trim()).filter(Boolean);return all.length-new Set(all).size}
+
+function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),1800)}
+async function copy(text){
+  try{await navigator.clipboard.writeText(text);toast("คัดลอกแล้ว");return true}
+  catch(e){const f=$("copyFallback");f.hidden=false;f.value=text;f.focus();f.select();toast("กด Ctrl+C / คัดลอกจากกล่องด้านล่าง");return false}
+}
+
+// ===== organizer UI =====
+["evName","evBudget","evDate","evNote"].forEach(id=>{$(id).value=st[id]||"";$(id).addEventListener("input",e=>{st[id]=e.target.value;save()})});
+$("names").value=st.names;
+$("names").addEventListener("input",e=>{st.names=e.target.value;save();renderNames()});
+
+function renderNames(){
+  const ns=names(),d=dupCount();
+  $("nameCount").textContent=`${ns.length} คน`+(d?` · ตัดชื่อซ้ำออก ${d} ชื่อ`:"");
+  for(const sel of [$("exA"),$("exB")]){const v=sel.value;sel.innerHTML="";const o=document.createElement("option");o.value="";o.textContent="เลือกชื่อ";sel.appendChild(o);
+    for(const n of ns){const op=document.createElement("option");op.value=n;op.textContent=n;sel.appendChild(op)}sel.value=ns.includes(v)?v:""}
+  const ex=$("exList");ex.innerHTML="";
+  st.excl=st.excl.filter(([a,b])=>ns.includes(a)&&ns.includes(b));
+  st.excl.forEach(([a,b],i)=>{const c=document.createElement("span");c.className="chip";c.textContent=`${a} ✕ ${b}`;
+    const x=document.createElement("button");x.type="button";x.textContent="ลบ";x.setAttribute("aria-label",`ลบ ${a} กับ ${b}`);x.onclick=()=>{st.excl.splice(i,1);save();renderNames()};c.appendChild(x);ex.appendChild(c)});
+}
+$("exAdd").onclick=()=>{const a=$("exA").value,b=$("exB").value;if(!a||!b||a===b)return;
+  if(!st.excl.some(([x,y])=>(x===a&&y===b)||(x===b&&y===a)))st.excl.push([a,b]);save();renderNames()};
+
+function blocked(a,b){return st.excl.some(([x,y])=>(x===a&&y===b)||(x===b&&y===a))}
+function draw(ns){
+  for(let t=0;t<20000;t++){
+    const o=ns.slice();for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}
+    let ok=true;for(let i=0;i<o.length;i++){if(blocked(o[i],o[(i+1)%o.length])){ok=false;break}}
+    if(ok){const m={};o.forEach((g,i)=>m[g]=o[(i+1)%o.length]);return m}
+  }
+  return null;
+}
+$("drawBtn").onclick=()=>{
+  const ns=names(),err=$("drawErr");err.hidden=true;
+  if(ns.length<3){err.textContent="ต้องมีผู้เล่นอย่างน้อย 3 คน";err.hidden=false;return}
+  if(st.results){$("redrawConfirm").hidden=false;$("results").scrollIntoView({behavior:"smooth"});return}
+  doDraw(ns);
+};
+function doDraw(ns){
+  const err=$("drawErr");const m=draw(ns);
+  if(!m){err.textContent="จับไม่ลงตัว เงื่อนไข \"ห้ามจับคู่กัน\" เยอะเกินไป ลองลบออกบางคู่";err.hidden=false;return}
+  const ev={e:st.evName,b:st.evBudget,d:st.evDate,n:st.evNote};
+  const decoys=(g,r)=>{const o=ns.filter(n=>n!==g&&n!==r);for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o.slice(0,12)};
+  st.results=ns.map(g=>({g,c:"r-"+encode({g,r:m[g],a:decoys(g,m[g]),...ev})}));
+  st.sent={};save();renderResults();$("results").scrollIntoView({behavior:"smooth"});
+}
+$("redraw").onclick=()=>{$("redrawConfirm").hidden=false};
+$("redrawNo").onclick=()=>{$("redrawConfirm").hidden=true};
+$("redrawYes").onclick=()=>{$("redrawConfirm").hidden=true;const ns=names();if(ns.length<3)return;doDraw(ns)};
+
+function linkFor(c){return SHARE_BASE?`${SHARE_BASE}#${c}`:""}
+function messageFor(r){
+  const l=linkFor(r.c);
+  return `🎁 Secret Santa${st.evName?" – "+st.evName:""}\nถึง ${r.g}: กดลิงก์แล้วหมุนดูคนเดียวนะ\n`+(l?`${l}\n\n(ถ้ากดแล้วไม่เข้าหน้าหมุน ให้คัดลอกข้อความนี้ทั้งหมดไปวางในช่องด้านบนของหน้านั้น)\n${r.c}`:`รหัส: ${r.c}`);
+}
+function renderResults(){
+  const box=$("results"),list=$("resList");
+  if(!st.results){box.hidden=true;return}
+  box.hidden=false;list.innerHTML="";
+  st.results.forEach(r=>{
+    const it=document.createElement("div");it.className="item";
+    const w=document.createElement("div");w.style.minWidth="0";
+    const n=document.createElement("div");n.className="who";n.textContent=r.g;w.appendChild(n);
+    if(st.sent[r.g]){const s=document.createElement("div");s.className="sent";s.textContent="✓ คัดลอกไปแล้ว";w.appendChild(s)}
+    const b=document.createElement("button");b.type="button";b.textContent=st.sent[r.g]?"คัดลอกอีกครั้ง":"คัดลอกข้อความ";
+    b.onclick=async()=>{await copy(messageFor(r));st.sent[r.g]=true;save();renderResults()};
+    it.append(w,b);list.appendChild(it);
+  });
+  const c=Object.keys(st.sent).length;$("sentCount").textContent=`ส่งแล้ว ${c}/${st.results.length}`;
+}
+$("copyAll").onclick=()=>copy(st.results.map(messageFor).join("\n\n────────\n\n"));
+
+function tryCode(){const v=$("codeIn").value.trim();if(!v){$("codeErr").hidden=true;return}
+  const m=v.match(/r-[a-z2-7]{8,}/i);const c=(m?m[0]:"r-"+v).toLowerCase();
+  try{const p=decode(c);$("codeErr").hidden=true;$("codeIn").value="";showReveal(p)}catch(e){$("codeErr").hidden=false}}
+$("codeIn").addEventListener("input",tryCode);
+$("codeIn").addEventListener("keydown",e=>{if(e.key==="Enter")tryCode()});
+
+// ===== reveal =====
+function route(){
+  const h=location.hash.slice(1);
+  if(h.startsWith("r-")){
+    try{const p=decode(h);showReveal(p);return}catch(e){}
+  }
+  $("reveal").hidden=true;$("organizer").hidden=false;
+}
+let cur=null,spinning=false;const ITEM_H=104;
+function setStrip(items){const s=$("strip");s.innerHTML="";items.forEach(t=>{const d=document.createElement("div");d.textContent=t;s.appendChild(d)})}
+function resetReel(){const s=$("strip");s.style.transition="none";s.style.transform="translateY(0)";setStrip(["? ? ?"]);$("reel").classList.remove("done");spinning=false;$("openBtn").disabled=false}
+function spin(){
+  if(spinning||!cur)return;spinning=true;$("openBtn").disabled=true;
+  const pool=[...(Array.isArray(cur.a)&&cur.a.length?cur.a:["🎁","❄️","⭐","🎄"]),cur.r];
+  const seq=["? ? ?"];let last="";
+  for(let i=0;i<40;i++){let n;do{n=pool[Math.floor(Math.random()*pool.length)]}while(pool.length>1&&n===last);seq.push(n);last=n}
+  if(seq[seq.length-1]===cur.r&&pool.length>1)seq.pop();
+  seq.push(cur.r);setStrip(seq);
+  const s=$("strip");s.style.transition="none";s.style.transform="translateY(0)";void s.offsetWidth;
+  s.style.transition=`transform ${reduce?.6:5.2}s cubic-bezier(.1,.7,.12,1)`;
+  s.style.transform=`translateY(-${(seq.length-1)*ITEM_H}px)`;
+  let done=false;const finish=()=>{if(done)return;done=true;
+    s.lastElementChild.classList.add("win");$("reel").classList.add("done");
+    $("sealedBox").hidden=true;$("openedBox").hidden=false;spinning=false;burst()};
+  s.addEventListener("transitionend",finish,{once:true});setTimeout(finish,(reduce?.6:5.2)*1000+300);
+}
+function showReveal(p){
+  $("organizer").hidden=true;$("reveal").hidden=false;cur=p;resetReel();
+  $("rvEvent").textContent=p.e||"Secret Santa";
+  $("rvHello").textContent=`สวัสดี ${p.g}`;
+  const f=$("rvFacts");f.innerHTML="";
+  [["งบของขวัญ",p.b],["วันแลกของขวัญ",p.d]].forEach(([k,v])=>{if(!v)return;const d=document.createElement("div");d.className="fact";const s=document.createElement("span");s.textContent=k;d.append(s,document.createTextNode(v));f.appendChild(d)});
+  $("rvNote").textContent=p.n||"";
+  $("sealedBox").hidden=false;$("openedBox").hidden=true;window.scrollTo(0,0);
+}
+$("openBtn").onclick=spin;
+$("hideBtn").onclick=()=>{resetReel();$("sealedBox").hidden=false;$("openedBox").hidden=true};
+$("backLink").onclick=e=>{e.preventDefault();location.hash="";route()};
+window.addEventListener("hashchange",route);
+
+// ===== snow =====
+const cv=$("snow"),cx=cv.getContext("2d");let flakes=[],burstUntil=0;
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function size(){cv.width=innerWidth;cv.height=innerHeight}size();addEventListener("resize",size);
+for(let i=0;i<40;i++)flakes.push(mk(Math.random()*innerHeight));
+function mk(y){return{x:Math.random()*innerWidth,y:y??-10,r:1+Math.random()*2.5,v:.3+Math.random()*.8,w:Math.random()*6.28,c:null}}
+function burst(){if(reduce)return;const cols=["#c23a4a","#c99a2e","#1d5c4a","#e2596a"];for(let i=0;i<70;i++){const f=mk(innerHeight*.35);f.x=innerWidth/2;f.vx=(Math.random()-.5)*9;f.vy=-Math.random()*7;f.c=cols[i%4];f.r=3+Math.random()*3;flakes.push(f)}}
+function tick(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  const snowCol=getComputedStyle(document.documentElement).getPropertyValue("--line");
+  flakes=flakes.filter(f=>{
+    if(f.c){f.vy+=.2;f.x+=f.vx;f.y+=f.vy;cx.fillStyle=f.c;cx.fillRect(f.x,f.y,f.r,f.r*1.6);return f.y<innerHeight+20}
+    f.y+=f.v;f.w+=.01;f.x+=Math.sin(f.w)*.3;if(f.y>innerHeight+5){f.y=-5;f.x=Math.random()*innerWidth}
+    cx.beginPath();cx.arc(f.x,f.y,f.r,0,6.28);cx.fillStyle=snowCol;cx.fill();return true});
+  requestAnimationFrame(tick);
+}
+if(!reduce)tick();
+
+renderNames();renderResults();route();
+</script>
+
+</body>
+</html>
