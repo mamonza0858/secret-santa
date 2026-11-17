@@ -113,6 +113,7 @@ button:hover{filter:brightness(.97)}
 
   <div class="panel">
     <div class="step"><b>1</b><h2>รายละเอียดงาน</h2></div>
+    <p class="hint">รายละเอียดนี้จะต่อท้ายในข้อความที่ส่งให้แต่ละคน ไม่ได้อยู่ในลิงก์ ลิงก์เลยสั้น</p>
     <div><label for="evName">ชื่องาน</label><input id="evName" placeholder="เช่น ปาร์ตี้ปีใหม่ทีมการตลาด"></div>
     <div class="grid2">
       <div><label for="evBudget">งบของขวัญ</label><input id="evBudget" placeholder="เช่น 300–500 บาท"></div>
@@ -284,8 +285,8 @@ function doDraw(ns){
   const err=$("drawErr");const m=draw(ns);
   if(!m){err.textContent="จับไม่ลงตัว เงื่อนไข \"ห้ามจับคู่กัน\" เยอะเกินไป ลองลบออกบางคู่";err.hidden=false;return}
   const ev={e:st.evName,b:st.evBudget,d:st.evDate,n:st.evNote};
-  const decoys=(g,r)=>{const o=ns.filter(n=>n!==g&&n!==r);for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o.slice(0,8)};
-  st.results=ns.map(g=>({g,c:encodeS({g,r:m[g],a:decoys(g,m[g]),...ev})}));
+  const decoys=(g,r)=>{const o=ns.filter(n=>n!==g&&n!==r);for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o.slice(0,5)};
+  st.results=ns.map(g=>({g,c:encodeS({g,r:m[g],a:decoys(g,m[g])})}));
   st.sent={};save();renderResults();$("results").scrollIntoView({behavior:"smooth"});
 }
 $("redraw").onclick=()=>{$("redrawConfirm").hidden=false};
@@ -295,7 +296,8 @@ $("redrawYes").onclick=()=>{$("redrawConfirm").hidden=true;const ns=names();if(n
 function linkFor(c){return SHARE_BASE?`${SHARE_BASE}#${c}`:""}
 function messageFor(r){
   const l=linkFor(r.c);
-  return `🎁 Secret Santa${st.evName?" – "+st.evName:""}\nถึง ${r.g}: กดลิงก์แล้วหมุนดูคนเดียวนะ\n`+(l?`${l}`:`รหัส: ${r.c}`);
+  const info=[st.evBudget&&`งบ: ${st.evBudget}`,st.evDate&&`แลกของขวัญ: ${st.evDate}`,st.evNote].filter(Boolean).join("\n");
+  return `🎁 Secret Santa${st.evName?" – "+st.evName:""}\nถึง ${r.g}: กดลิงก์แล้วหมุนดูคนเดียวนะ\n`+(l?`${l}`:`รหัส: ${r.c}`)+(info?`\n\n${info}`:"");
 }
 function renderResults(){
   const box=$("results"),list=$("resList");
