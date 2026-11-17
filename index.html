@@ -295,7 +295,7 @@ $("redrawYes").onclick=()=>{$("redrawConfirm").hidden=true;const ns=names();if(n
 function linkFor(c){return SHARE_BASE?`${SHARE_BASE}#${c}`:""}
 function messageFor(r){
   const l=linkFor(r.c);
-  return `🎁 Secret Santa${st.evName?" – "+st.evName:""}\nถึง ${r.g}: กดลิงก์แล้วหมุนดูคนเดียวนะ\n`+(l?`${l}\n\n(ถ้ากดแล้วไม่เข้าหน้าหมุน ให้คัดลอกข้อความนี้ทั้งหมดไปวางในช่องด้านบนของหน้านั้น)\n${r.c}`:`รหัส: ${r.c}`);
+  return `🎁 Secret Santa${st.evName?" – "+st.evName:""}\nถึง ${r.g}: กดลิงก์แล้วหมุนดูคนเดียวนะ\n`+(l?`${l}`:`รหัส: ${r.c}`);
 }
 function renderResults(){
   const box=$("results"),list=$("resList");
