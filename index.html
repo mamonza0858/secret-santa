@@ -187,7 +187,6 @@ button:hover{filter:brightness(.97)}
       <button class="ghost" id="hideBtn" type="button">ซ่อนชื่อ</button>
     </div>
   </div>
-  <p class="hint" style="text-align:center;margin-top:16px"><a href="#" id="backLink" style="color:var(--muted)">กลับหน้าคนจัดงาน</a></p>
 </section>
 </div>
 
@@ -359,7 +358,6 @@ function showReveal(p){
 }
 $("openBtn").onclick=spin;
 $("hideBtn").onclick=()=>{resetReel();$("sealedBox").hidden=false;$("openedBox").hidden=true};
-$("backLink").onclick=e=>{e.preventDefault();location.hash="";route()};
 window.addEventListener("hashchange",route);
 
 // ===== snow =====
