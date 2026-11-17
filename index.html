@@ -169,20 +169,12 @@ input[type=file]{padding:8px}
     <textarea id="copyFallback" class="code" hidden readonly></textarea>
     <div class="backup">
       <h3 style="font-size:16px">สำรองข้อมูลไว้กับตัว</h3>
-      <p class="hint">เก็บข้อความทั้งหมดไว้ เผื่อเปลี่ยนเครื่องหรือข้อมูลในเบราว์เซอร์หาย ไฟล์นี้มีลิงก์ของทุกคน อย่าส่งลงกลุ่ม</p>
+      <p class="hint">ไฟล์ .txt บอกว่าใครได้ใคร พร้อมลิงก์ของแต่ละคน เปิดไฟล์แล้วจะเห็นผลทั้งหมด เก็บไว้คนเดียว อย่าส่งลงกลุ่ม</p>
       <div class="row">
-        <button id="bkDownload" type="button">ดาวน์โหลดไฟล์สำรอง</button>
-        <button id="bkShare" type="button" hidden>ส่งเข้าแชทตัวเอง / LINE Keep</button>
+        <button id="bkDownload" type="button">ดาวน์โหลดไฟล์ .txt</button>
       </div>
       <p class="hint" id="bkStatus"></p>
     </div>
-  </div>
-
-  <div class="panel">
-    <h2>กู้คืนจากไฟล์สำรอง</h2>
-    <p class="hint">เปิดเว็บจากเครื่องใหม่ แล้วเลือกไฟล์สำรองที่เคยดาวน์โหลดไว้ รายชื่อและลิงก์ทั้งหมดจะกลับมาเหมือนเดิม</p>
-    <input type="file" id="bkFile" accept=".json,application/json">
-    <p class="err" id="bkErr" hidden>ไฟล์นี้ไม่ใช่ไฟล์สำรองของ Secret Santa</p>
   </div>
 
 </section>
@@ -334,33 +326,20 @@ function renderResults(){
 $("copyAll").onclick=()=>copy(st.results.map(messageFor).join("\n\n────────\n\n"));
 
 // ===== backup =====
-function allText(){return `สำรองข้อมูล Secret Santa${st.evName?" – "+st.evName:""}\nบันทึกเมื่อ ${new Date().toLocaleString("th-TH")}\n\n`+st.results.map(messageFor).join("\n\n────────\n\n")}
+function allText(){
+  const lines=st.results.map((r,i)=>{let to="?";try{to=decode(r.c).r}catch(e){}return `${i+1}. ${r.g} → ${to}\n   ${linkFor(r.c)||r.c}`});
+  return `Secret Santa${st.evName?" – "+st.evName:""}\nบันทึกเมื่อ ${new Date().toLocaleString("th-TH")}\n\n`+lines.join("\n\n")+"\n";
+}
 function bkStamp(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
 $("bkDownload").onclick=()=>{
   if(!st.results)return;
-  const data={app:"secret-santa",version:1,savedAt:new Date().toISOString(),
-    state:{evName:st.evName,evBudget:st.evBudget,evDate:st.evDate,evNote:st.evNote,names:st.names,excl:st.excl,results:st.results,sent:st.sent},
-    messages:st.results.map(r=>({to:r.g,message:messageFor(r)}))};
   try{
-    const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
-    const a=document.createElement("a");a.href=url;a.download=`secret-santa-backup-${bkStamp()}.json`;document.body.appendChild(a);a.click();a.remove();
+    const url=URL.createObjectURL(new Blob(["﻿"+allText().replace(/\n/g,"\r\n")],{type:"text/plain;charset=utf-8"}));
+    const a=document.createElement("a");a.href=url;a.download=`secret-santa-${bkStamp()}.txt`;document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),2000);
     $("bkStatus").textContent="ดาวน์โหลดแล้ว ดูในโฟลเดอร์ Downloads";
   }catch(e){$("bkStatus").textContent="ดาวน์โหลดไม่ได้ในเบราว์เซอร์นี้ ใช้ปุ่มคัดลอกทั้งหมดแทน"}
 };
-if(navigator.share)$("bkShare").hidden=false;
-$("bkShare").onclick=async()=>{if(!st.results)return;try{await navigator.share({title:"สำรองข้อมูล Secret Santa",text:allText()});$("bkStatus").textContent="ส่งแล้ว"}catch(e){}};
-$("bkFile").addEventListener("change",async e=>{
-  const f=e.target.files[0];if(!f)return;$("bkErr").hidden=true;
-  try{
-    const d=JSON.parse(await f.text());const s=d&&d.app==="secret-santa"&&d.state;
-    if(!s||typeof s.names!=="string"||!Array.isArray(s.results))throw 0;
-    st={evName:s.evName||"",evBudget:s.evBudget||"",evDate:s.evDate||"",evNote:s.evNote||"",names:s.names,excl:Array.isArray(s.excl)?s.excl:[],results:s.results,sent:s.sent||{}};
-    save();["evName","evBudget","evDate","evNote"].forEach(id=>$(id).value=st[id]);$("names").value=st.names;
-    renderNames();renderResults();toast("กู้คืนแล้ว");$("results").scrollIntoView({behavior:"smooth"});
-  }catch(err){$("bkErr").hidden=false}
-  e.target.value="";
-});
 
 function tryCode(){const v=$("codeIn").value.trim();if(!v){$("codeErr").hidden=true;return}
   const m=v.match(/(?:^|[^a-zA-Z0-9])([rs]-[a-zA-Z0-9]{8,})/);const c=m?m[1]:v;
