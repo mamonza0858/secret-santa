@@ -203,8 +203,26 @@ function encode(obj){
   let sum=0;raw.forEach(b=>sum=(sum+b)&255);
   return b32(Uint8Array.from([salt,sum,...xor(raw,salt)]));
 }
+// compact format "s-": Thai packed 1 byte/char, fields joined by \x1f, base62
+const A62="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+function packT(s){const o=[];for(const ch of s){const c=ch.codePointAt(0);if(c>=0xE00&&c<=0xE7F)o.push(0x80+c-0xE00);else if(c<0x80&&c!==0x1e)o.push(c);else o.push(0x1e,(c>>16)&255,(c>>8)&255,c&255)}return o}
+function unpackT(b){let s="";for(let i=0;i<b.length;i++){const x=b[i];if(x===0x1e){s+=String.fromCodePoint((b[i+1]<<16)|(b[i+2]<<8)|b[i+3]);i+=3}else if(x>=0x80)s+=String.fromCodePoint(0xE00+x-0x80);else s+=String.fromCharCode(x)}return s}
+function b62(bytes){let n=1n;for(const b of bytes)n=(n<<8n)|BigInt(b);let out="";while(n>0n){out=A62[Number(n%62n)]+out;n/=62n}return out}
+function unb62(s){let n=0n;for(const c of s){const i=A62.indexOf(c);if(i<0)throw 0;n=n*62n+BigInt(i)}const out=[];while(n>0n){out.unshift(Number(n&255n));n>>=8n}if(out.shift()!==1)throw 0;return Uint8Array.from(out)}
+function encodeS(o){
+  const raw=Uint8Array.from(packT([o.g,o.r,o.e||"",o.b||"",o.d||"",o.n||"",...(o.a||[])].join("\x1f")));
+  const salt=Math.floor(Math.random()*256);let sum=0;raw.forEach(b=>sum=(sum+b)&255);
+  return "s-"+b62([salt,sum,...xor(raw,salt)]);
+}
+function decodeS(code){
+  const all=unb62(code);const salt=all[0],sum=all[1];const raw=xor(all.slice(2),salt);
+  let s=0;raw.forEach(b=>s=(s+b)&255);if(s!==sum)throw 0;
+  const f=unpackT(raw).split("\x1f");if(f.length<6||!f[0]||!f[1])throw 0;
+  return {g:f[0],r:f[1],e:f[2],b:f[3],d:f[4],n:f[5],a:f.slice(6)};
+}
 function decode(code){
-  const all=unb32(code.trim().toLowerCase().replace(/^r-/,""));
+  code=code.trim();if(code.startsWith("s-"))return decodeS(code.slice(2));
+  const all=unb32(code.toLowerCase().replace(/^r-/,""));
   const salt=all[0],sum=all[1];const raw=xor(all.slice(2),salt);
   let s=0;raw.forEach(b=>s=(s+b)&255);if(s!==sum)throw 0;
   return JSON.parse(new TextDecoder().decode(raw));
@@ -266,8 +284,8 @@ function doDraw(ns){
   const err=$("drawErr");const m=draw(ns);
   if(!m){err.textContent="จับไม่ลงตัว เงื่อนไข \"ห้ามจับคู่กัน\" เยอะเกินไป ลองลบออกบางคู่";err.hidden=false;return}
   const ev={e:st.evName,b:st.evBudget,d:st.evDate,n:st.evNote};
-  const decoys=(g,r)=>{const o=ns.filter(n=>n!==g&&n!==r);for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o.slice(0,12)};
-  st.results=ns.map(g=>({g,c:"r-"+encode({g,r:m[g],a:decoys(g,m[g]),...ev})}));
+  const decoys=(g,r)=>{const o=ns.filter(n=>n!==g&&n!==r);for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o.slice(0,8)};
+  st.results=ns.map(g=>({g,c:encodeS({g,r:m[g],a:decoys(g,m[g]),...ev})}));
   st.sent={};save();renderResults();$("results").scrollIntoView({behavior:"smooth"});
 }
 $("redraw").onclick=()=>{$("redrawConfirm").hidden=false};
@@ -297,7 +315,7 @@ function renderResults(){
 $("copyAll").onclick=()=>copy(st.results.map(messageFor).join("\n\n────────\n\n"));
 
 function tryCode(){const v=$("codeIn").value.trim();if(!v){$("codeErr").hidden=true;return}
-  const m=v.match(/r-[a-z2-7]{8,}/i);const c=(m?m[0]:"r-"+v).toLowerCase();
+  const m=v.match(/(?:^|[^a-zA-Z0-9])([rs]-[a-zA-Z0-9]{8,})/);const c=m?m[1]:v;
   try{const p=decode(c);$("codeErr").hidden=true;$("codeIn").value="";showReveal(p)}catch(e){$("codeErr").hidden=false}}
 $("codeIn").addEventListener("input",tryCode);
 $("codeIn").addEventListener("keydown",e=>{if(e.key==="Enter")tryCode()});
@@ -305,7 +323,7 @@ $("codeIn").addEventListener("keydown",e=>{if(e.key==="Enter")tryCode()});
 // ===== reveal =====
 function route(){
   const h=location.hash.slice(1);
-  if(h.startsWith("r-")){
+  if(h.startsWith("r-")||h.startsWith("s-")){
     try{const p=decode(h);showReveal(p);return}catch(e){}
   }
   $("reveal").hidden=true;$("organizer").hidden=false;
