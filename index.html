@@ -231,7 +231,7 @@ function decode(code){
 
 // ===== state =====
 const $=id=>document.getElementById(id);
-const SHARE_BASE=location.href.split("#")[0];
+const SHARE_BASE=location.origin+location.pathname;
 const sample={evName:"ปาร์ตี้ปีใหม่ 2027",evBudget:"300–500 บาท",evDate:"ศุกร์ 25 ธ.ค. 15:00",evNote:"ห่อให้สวย ห้ามเขียนชื่อคนให้นะ",
   names:"ตัวอย่าง: พี่เอ\nตัวอย่าง: บีม\nตัวอย่าง: ฝน\nตัวอย่าง: ต้น\nตัวอย่าง: มิว",excl:[],results:null,sent:{}};
 let st;
